@@ -1,0 +1,1213 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "provenance": [],
+      "authorship_tag": "ABX9TyOiZqcJOYxZYkhpHqaXb7Lz",
+      "include_colab_link": true
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    },
+    "language_info": {
+      "name": "python"
+    },
+    "gpuClass": "standard"
+  },
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "view-in-github",
+        "colab_type": "text"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/Henrymessi/Analysis-using-ANOVA/blob/main/Big%20Data%20Analytics%20in%20Fashion%20Industry\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 2,
+      "metadata": {
+        "id": "dcemGVxmmJUE"
+      },
+      "outputs": [],
+      "source": [
+        "import os\n",
+        "import sys\n",
+        "import pandas as pd\n",
+        "from pandas import DataFrame\n",
+        "import numpy as np\n",
+        "import matplotlib.pyplot as plt\n",
+        "import matplotlib.ticker as mtick\n",
+        "import matplotlib\n",
+        "from mpl_toolkits.mplot3d import Axes3D\n",
+        "import math\n",
+        "from IPython.core.interactiveshell import InteractiveShell\n",
+        "from datetime import *\n",
+        "import statistics as stats\n",
+        "# This helps auto print out the items without explixitly using 'print'\n",
+        "InteractiveShell.ast_node_interactivity = \"all\" \n",
+        "%matplotlib inline"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "!pip install pyspark"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "S7im52xEmQxI",
+        "outputId": "8e9bc380-6c50-4c56-bb54-8a3e2b2bd3bd"
+      },
+      "execution_count": 3,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Looking in indexes: https://pypi.org/simple, https://us-python.pkg.dev/colab-wheels/public/simple/\n",
+            "Collecting pyspark\n",
+            "  Downloading pyspark-3.3.2.tar.gz (281.4 MB)\n",
+            "\u001b[2K     \u001b[90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m \u001b[32m281.4/281.4 MB\u001b[0m \u001b[31m4.0 MB/s\u001b[0m eta \u001b[36m0:00:00\u001b[0m\n",
+            "\u001b[?25h  Preparing metadata (setup.py) ... \u001b[?25l\u001b[?25hdone\n",
+            "Collecting py4j==0.10.9.5\n",
+            "  Downloading py4j-0.10.9.5-py2.py3-none-any.whl (199 kB)\n",
+            "\u001b[2K     \u001b[90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m \u001b[32m199.7/199.7 KB\u001b[0m \u001b[31m17.0 MB/s\u001b[0m eta \u001b[36m0:00:00\u001b[0m\n",
+            "\u001b[?25hBuilding wheels for collected packages: pyspark\n",
+            "  Building wheel for pyspark (setup.py) ... \u001b[?25l\u001b[?25hdone\n",
+            "  Created wheel for pyspark: filename=pyspark-3.3.2-py2.py3-none-any.whl size=281824025 sha256=6149d044973fcce6cc74c3fb529f6d3402aa8b6b4b6850cfb94086a40c571172\n",
+            "  Stored in directory: /root/.cache/pip/wheels/6c/e3/9b/0525ce8a69478916513509d43693511463c6468db0de237c86\n",
+            "Successfully built pyspark\n",
+            "Installing collected packages: py4j, pyspark\n",
+            "Successfully installed py4j-0.10.9.5 pyspark-3.3.2\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "import pyspark\n",
+        "from pyspark.rdd import RDD\n",
+        "from pyspark.sql import Row\n",
+        "from pyspark.sql import DataFrame\n",
+        "from pyspark.sql import SparkSession\n",
+        "from pyspark.sql import SQLContext\n",
+        "from pyspark.sql import functions\n",
+        "from pyspark.sql.functions import lit, desc, col, size, array_contains\\\n",
+        ", isnan, udf, hour, array_min, array_max, countDistinct\n",
+        "from pyspark.sql.types import *\n"
+      ],
+      "metadata": {
+        "id": "b5E6HywcmmVC"
+      },
+      "execution_count": 4,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "spark = SparkSession.builder.appName(\"answers\").getOrCreate()\n",
+        "\n",
+        "path = \"/content/sample_data/fashion_dataset.csv\"\n"
+      ],
+      "metadata": {
+        "id": "yUGim8slnkC0"
+      },
+      "execution_count": 7,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "df = spark.read.option(\"header\",'True').option('delimiter', ',').csv(path)\n",
+        "print('Data overview')\n",
+        "df.show(10, True)\n",
+        "df.printSchema()"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "CgaOx3e-nqB5",
+        "outputId": "e0c9e596-c644-45f4-de45-87fe18749287"
+      },
+      "execution_count": 8,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Data overview\n",
+            "+--------+--------------------+-----+-------+--------------+-----------+-----------+--------------------+--------------------+\n",
+            "|    p_id|                name|price| colour|         brand|ratingCount| avg_rating|         description|        p_attributes|\n",
+            "+--------+--------------------+-----+-------+--------------+-----------+-----------+--------------------+--------------------+\n",
+            "| 1518329|Dupatta Bazaar Wh...|  899|  White|Dupatta Bazaar|       1321|4.548826646|White embroidered...|{'Occasion': 'Dai...|\n",
+            "| 5829334|Roadster Women Mu...| 1199|Mustard|      Roadster|       5462|4.313255218|\"Mustard yellow s...|{'Body Shape ID':...|\n",
+            "|10340119|Inddus Peach-Colo...| 5799|  Peach|        Inddus|        145|4.068965517|Peach-Coloured an...|{'Bottom Fabric':...|\n",
+            "|10856380|SASSAFRAS Women B...| 1499|  Black|     SASSAFRAS|       9124|4.147523016|\"Black solid wove...|{'Add-Ons': 'NA',...|\n",
+            "|12384822|Kotty Women Black...| 1999|  Black|         Kotty|      12260|4.078466558|\"Black dark wash ...|{'Add-Ons': 'NA',...|\n",
+            "|12742100|KASSUALLY Women B...| 2199|  Black|     KASSUALLY|       6297|4.349213911|Black printed bas...|{'Body or Garment...|\n",
+            "|13842966|Sassafras Brown &...| 1499|  Brown|     SASSAFRAS|       7358|4.395351998|<ul><li>Brown and...|{'Body Shape ID':...|\n",
+            "|14021452|Sera Women Multic...| 1494|  Multi|          Sera|        750|      4.288|Brown and blue pr...|{'Body or Garment...|\n",
+            "|14063026|Tokyo Talkies Wom...|  699|  Black| Tokyo Talkies|       1856|4.530711207|\"Black solid mid-...|{'Body or Garment...|\n",
+            "|14324806|Anouk Stylish Bla...| 4699|  Black|         Anouk|         84| 3.80952381|Stay fashionable ...|{'Blouse Closure'...|\n",
+            "+--------+--------------------+-----+-------+--------------+-----------+-----------+--------------------+--------------------+\n",
+            "only showing top 10 rows\n",
+            "\n",
+            "root\n",
+            " |-- p_id: string (nullable = true)\n",
+            " |-- name: string (nullable = true)\n",
+            " |-- price: string (nullable = true)\n",
+            " |-- colour: string (nullable = true)\n",
+            " |-- brand: string (nullable = true)\n",
+            " |-- ratingCount: string (nullable = true)\n",
+            " |-- avg_rating: string (nullable = true)\n",
+            " |-- description: string (nullable = true)\n",
+            " |-- p_attributes: string (nullable = true)\n",
+            "\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "df.describe().show()\n",
+        "print(f'The total number of rows are: {df.count()}')\n"
+      ],
+      "metadata": {
+        "id": "URjL6Drlnvo0",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "7efd523c-6561-4e5b-d9d9-a806716261dc"
+      },
+      "execution_count": 9,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "+-------+--------------------+--------------------+--------------------+--------------------+--------------------+--------------------+--------------------+--------------------+--------------------+\n",
+            "|summary|                p_id|                name|               price|              colour|               brand|         ratingCount|          avg_rating|         description|        p_attributes|\n",
+            "+-------+--------------------+--------------------+--------------------+--------------------+--------------------+--------------------+--------------------+--------------------+--------------------+\n",
+            "|  count|               14736|               14721|               14403|               14323|               14308|                6584|                6584|               14311|               13900|\n",
+            "|   mean|1.5691291900496121E7|                null|  2964.1684835779174|                null|               270.6|  184.47941042394774|  4.1012258658981935|                null|                null|\n",
+            "| stddev|   3153525.155166516|                null|  2564.0148505973716|                null|  221.27991323208713|    782.501136511221| 0.47563329373791424|                null|                null|\n",
+            "|    min| The model (heigh...|            10% Silk| 'Blouse Fabric':...| 'Border': 'Printed'| 'Care for me': 'NA'| 'Multipack Set':...| 'Occasion': 'Fes...| 'Ornamentation':...| 'Pattern': 'Prin...|\n",
+            "|    max|Width)</p><p>Silk...|{'Bottom Fabric':...|{'Blouse': 'NA', ...|{'Blouse': 'Blous...|              zink Z|                 998|                   5|woven design lehe...|{'Pattern': 'Solid'}|\n",
+            "+-------+--------------------+--------------------+--------------------+--------------------+--------------------+--------------------+--------------------+--------------------+--------------------+\n",
+            "\n",
+            "The total number of rows are: 14754\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "path_2 = \"/content/sample_data/fashion_brand.csv\"\n",
+        "df_2 = spark.read.option(\"header\",'True').option('delimiter', ',').csv(path_2)\n",
+        "print('Data overview for fashion_brand')\n",
+        "df_2.show(10, True)\n",
+        "df_2.printSchema()"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "STMLeLs2qTXC",
+        "outputId": "73b67a21-2958-4909-9b12-775c5aa8baf6"
+      },
+      "execution_count": 10,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Data overview for fashion_brand\n",
+            "+--------+---------------+\n",
+            "|brand_id|     brand_name|\n",
+            "+--------+---------------+\n",
+            "|       1|            513|\n",
+            "|       2|           109F|\n",
+            "|       3|      20Dresses|\n",
+            "|       4|    250 Designs|\n",
+            "|       5|           3Pin|\n",
+            "|       6|  6Y Collective|\n",
+            "|       7|98 Degree North|\n",
+            "|       8|     9Teenagain|\n",
+            "|       9| A Little Fable|\n",
+            "|      10|       A.T.U.N.|\n",
+            "+--------+---------------+\n",
+            "only showing top 10 rows\n",
+            "\n",
+            "root\n",
+            " |-- brand_id: string (nullable = true)\n",
+            " |-- brand_name: string (nullable = true)\n",
+            "\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "df_2.describe().show()\n",
+        "print(f'The total number of rows in the fashion_brand dataset are: {df_2.count()}')"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "fUEHZjQfroyc",
+        "outputId": "d0bd30a2-e8c6-4e14-c524-4212290c76d5"
+      },
+      "execution_count": 11,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "+-------+-----------------+-----------------+\n",
+            "|summary|         brand_id|       brand_name|\n",
+            "+-------+-----------------+-----------------+\n",
+            "|  count|             1020|             1020|\n",
+            "|   mean|            510.5|            311.0|\n",
+            "| stddev|294.5929394944828|285.6711395993652|\n",
+            "|    min|                1|             109F|\n",
+            "|    max|              999|             Zola|\n",
+            "+-------+-----------------+-----------------+\n",
+            "\n",
+            "The total number of rows in the fashion_brand dataset are: 1020\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# ======rename the brand_name column to brand in fashion_brand dataset===========\n",
+        "\n",
+        "df_3 = df_2.withColumnRenamed(\"brand_name\",\"brand\")\n",
+        "df_3.describe().show()"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "fAaogBtlr9q2",
+        "outputId": "7b76aa4d-7557-4aa9-9698-e66d62126438"
+      },
+      "execution_count": 12,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "+-------+-----------------+-----------------+\n",
+            "|summary|         brand_id|            brand|\n",
+            "+-------+-----------------+-----------------+\n",
+            "|  count|             1020|             1020|\n",
+            "|   mean|            510.5|            311.0|\n",
+            "| stddev|294.5929394944828|285.6711395993652|\n",
+            "|    min|                1|             109F|\n",
+            "|    max|              999|             Zola|\n",
+            "+-------+-----------------+-----------------+\n",
+            "\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# ===================change all words in the two datasets to lowercase using SQL function================\n",
+        "\n",
+        "import pyspark.sql.functions as f\n",
+        "f_data=df.select(\"*\", f.lower(\"brand\"))\n",
+        "b_data=df_3.select(\"*\", f.lower(\"brand\"))\n",
+        "f_data\n",
+        "b_data\n"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "TI-wJ5LGsJrV",
+        "outputId": "74b9202d-d00e-4a71-da7a-d2eef25eeaa1"
+      },
+      "execution_count": 13,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "DataFrame[p_id: string, name: string, price: string, colour: string, brand: string, ratingCount: string, avg_rating: string, description: string, p_attributes: string, lower(brand): string]"
+            ]
+          },
+          "metadata": {},
+          "execution_count": 13
+        },
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "DataFrame[brand_id: string, brand: string, lower(brand): string]"
+            ]
+          },
+          "metadata": {},
+          "execution_count": 13
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# ================delete previous column brand in the datasets===================\n",
+        "f_del = f_data.drop('brand', 'p_attributes', 'description')\n",
+        "b_del = b_data.drop('brand')\n",
+        "f_del\n",
+        "b_del\n"
+      ],
+      "metadata": {
+        "id": "Yq8pSu2-sVpC",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "b3ae0d07-a917-4171-90a4-247b288ee736"
+      },
+      "execution_count": 14,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "DataFrame[p_id: string, name: string, price: string, colour: string, ratingCount: string, avg_rating: string, lower(brand): string]"
+            ]
+          },
+          "metadata": {},
+          "execution_count": 14
+        },
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "DataFrame[brand_id: string, lower(brand): string]"
+            ]
+          },
+          "metadata": {},
+          "execution_count": 14
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# ==================== Rename the column name from lower(brand) to brand=========\n",
+        "\n",
+        "f_1=f_del.withColumnRenamed(\"lower(brand)\",\"brand\")\n",
+        "f_2=b_del.withColumnRenamed(\"lower(brand)\",\"brand\")\n",
+        "f_1.limit(5).show()\n",
+        "f_2.limit(5).show()"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "JvmlBuNV7lve",
+        "outputId": "5a41ee74-3be0-4b2e-96f0-700bd5ea5af1"
+      },
+      "execution_count": 15,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "+--------+--------------------+-----+-------+-----------+-----------+--------------+\n",
+            "|    p_id|                name|price| colour|ratingCount| avg_rating|         brand|\n",
+            "+--------+--------------------+-----+-------+-----------+-----------+--------------+\n",
+            "| 1518329|Dupatta Bazaar Wh...|  899|  White|       1321|4.548826646|dupatta bazaar|\n",
+            "| 5829334|Roadster Women Mu...| 1199|Mustard|       5462|4.313255218|      roadster|\n",
+            "|10340119|Inddus Peach-Colo...| 5799|  Peach|        145|4.068965517|        inddus|\n",
+            "|10856380|SASSAFRAS Women B...| 1499|  Black|       9124|4.147523016|     sassafras|\n",
+            "|12384822|Kotty Women Black...| 1999|  Black|      12260|4.078466558|         kotty|\n",
+            "+--------+--------------------+-----+-------+-----------+-----------+--------------+\n",
+            "\n",
+            "+--------+-----------+\n",
+            "|brand_id|      brand|\n",
+            "+--------+-----------+\n",
+            "|       1|        513|\n",
+            "|       2|       109f|\n",
+            "|       3|  20dresses|\n",
+            "|       4|250 designs|\n",
+            "|       5|       3pin|\n",
+            "+--------+-----------+\n",
+            "\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# ======================merge the two datasets============================\n",
+        "new_data = f_1.join(f_2, f_1.brand==f_2.brand, 'outer').drop(f_1.brand)\n",
+        "new_data.limit(5).show()"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "CoXGkTG_7t9l",
+        "outputId": "c6d0fe4b-55ed-4a62-fff6-265226e291d9"
+      },
+      "execution_count": 16,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "+--------------------+--------------------+-----+------+-----------+----------+--------+-----+\n",
+            "|                p_id|                name|price|colour|ratingCount|avg_rating|brand_id|brand|\n",
+            "+--------------------+--------------------+-----+------+-----------+----------+--------+-----+\n",
+            "|The blouse worn b...|{'Blouse': 'Blous...| null|  null|       null|      null|    null| null|\n",
+            "|The blouse worn b...|{'Blouse': 'Blous...| null|  null|       null|      null|    null| null|\n",
+            "|The blouse worn b...|{'Blouse': 'Blous...| null|  null|       null|      null|    null| null|\n",
+            "|The blouse worn b...|{'Better Cotton I...| null|  null|       null|      null|    null| null|\n",
+            "|The blouse worn b...|{'Blouse': 'Blous...| null|  null|       null|      null|    null| null|\n",
+            "+--------------------+--------------------+-----+------+-----------+----------+--------+-----+\n",
+            "\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# =====================Describe Newdataset================================\n",
+        "new_data.describe().show()\n",
+        "\n",
+        "c=new_data.na.drop(subset=[\"p_id\",\"name\", \"colour\"])\n",
+        "c.describe().show()"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "xyGzJiKG8Aec",
+        "outputId": "0c7f46ce-45fe-4aed-b25b-287a9821ed25"
+      },
+      "execution_count": 17,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "+-------+--------------------+--------------------+--------------------+--------------------+--------------------+--------------------+------------------+------------------+\n",
+            "|summary|                p_id|                name|               price|              colour|         ratingCount|          avg_rating|          brand_id|             brand|\n",
+            "+-------+--------------------+--------------------+--------------------+--------------------+--------------------+--------------------+------------------+------------------+\n",
+            "|  count|               14736|               14721|               14403|               14323|                6584|                6584|             14305|             14305|\n",
+            "|   mean|1.5691291900496121E7|                null|  2964.1684835779174|                null|  184.47941042394774|   4.101225865898192|  531.645089129675|             270.6|\n",
+            "| stddev|   3153525.155166523|                null|  2564.0148505973757|                null|   782.5011365112201|  0.4756332937379134|292.50324969961844|221.27991323208713|\n",
+            "|    min| The model (heigh...|            10% Silk| 'Blouse Fabric':...| 'Border': 'Printed'| 'Multipack Set':...| 'Occasion': 'Fes...|                 1|              109f|\n",
+            "|    max|Width)</p><p>Silk...|{'Bottom Fabric':...|{'Blouse': 'NA', ...|{'Blouse': 'Blous...|                 998|                   5|               999|              zola|\n",
+            "+-------+--------------------+--------------------+--------------------+--------------------+--------------------+--------------------+------------------+------------------+\n",
+            "\n",
+            "+-------+--------------------+--------------------+--------------------+--------------------+--------------------+--------------------+------------------+------------------+\n",
+            "|summary|                p_id|                name|               price|              colour|         ratingCount|          avg_rating|          brand_id|             brand|\n",
+            "+-------+--------------------+--------------------+--------------------+--------------------+--------------------+--------------------+------------------+------------------+\n",
+            "|  count|               14323|               14323|               14323|               14323|                6584|                6584|             14305|             14305|\n",
+            "|   mean|1.5691055917540181E7|                null|  2964.1684835779174|                null|  184.47941042394774|  4.1012258658981935|  531.645089129675|             270.6|\n",
+            "| stddev|  3153508.9814139376|                null|  2564.0148505973716|                null|    782.501136511221| 0.47563329373791424|292.50324969961747|221.27991323208713|\n",
+            "|    min|            10016743|            10% Silk| 'Blouse Fabric':...| 'Border': 'Printed'| 'Multipack Set':...| 'Occasion': 'Fes...|                 1|              109f|\n",
+            "|    max|The blouse worn b...|zink Z Pink Basic...|Dry Clean &amp; H...|{'Blouse': 'Blous...|                 998|                   5|               999|              zola|\n",
+            "+-------+--------------------+--------------------+--------------------+--------------------+--------------------+--------------------+------------------+------------------+\n",
+            "\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# ========replace empty cells on ratingCount and avg_rating columns with the mean of datasets closer to the cells from pyspark.sql import functions as F, Window =========\n",
+        "\n",
+        "from pyspark.sql import Window \n",
+        "\n",
+        "exclude = [\"name\", \"colour\"]\n",
+        "avg_new_data = c.select(\n",
+        "    *(\n",
+        "        f.coalesce(f.col(col), f.avg(col).over(Window.orderBy(f.lit(1)))).alias(col)\n",
+        "        if col.lower() not in exclude\n",
+        "        else f.col(col)\n",
+        "        for col in new_data.columns\n",
+        "    )\n",
+        ")\n",
+        "avg_new_data.describe().show()"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "ucS0ou_e8Kaj",
+        "outputId": "01c4dd09-98e5-4b37-ca98-f997164be302"
+      },
+      "execution_count": 18,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "+-------+--------------------+--------------------+--------------------+--------------------+--------------------+--------------------+-----------------+-----------------+\n",
+            "|summary|                p_id|                name|               price|              colour|         ratingCount|          avg_rating|         brand_id|            brand|\n",
+            "+-------+--------------------+--------------------+--------------------+--------------------+--------------------+--------------------+-----------------+-----------------+\n",
+            "|  count|               14323|               14323|               14323|               14323|               14323|               14323|            14323|            14323|\n",
+            "|   mean|1.5691055917540181E7|                null|  2964.1684835779174|                null|   184.4794104239212|    4.10122586589767| 531.645089129675|270.6000000000001|\n",
+            "| stddev|   3153508.981413936|                null|   2564.014850597362|                null|   530.4464890909902| 0.32242510456014223|292.3193817403071|94.35407203237656|\n",
+            "|    min|            10016743|            10% Silk| 'Blouse Fabric':...| 'Border': 'Printed'| 'Multipack Set':...| 'Occasion': 'Fes...|                1|             109f|\n",
+            "|    max|The blouse worn b...|zink Z Pink Basic...|Dry Clean &amp; H...|{'Blouse': 'Blous...|                 998|                   5|              999|             zola|\n",
+            "+-------+--------------------+--------------------+--------------------+--------------------+--------------------+--------------------+-----------------+-----------------+\n",
+            "\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# ==========fill the null cells with zero in the ratingCount and avg_rating columns======\n",
+        "a_data = avg_new_data.na.fill(value=0,subset=[\"ratingCount\"])\n",
+        "b_data = a_data.na.fill(value=0,subset=[\"avg_rating\"])\n",
+        "b_data.describe().show()"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "U6BAem458iUx",
+        "outputId": "cd8afde7-39bf-405e-e9b9-6dabbbdbeb11"
+      },
+      "execution_count": 19,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "+-------+--------------------+--------------------+--------------------+--------------------+--------------------+--------------------+-----------------+-----------------+\n",
+            "|summary|                p_id|                name|               price|              colour|         ratingCount|          avg_rating|         brand_id|            brand|\n",
+            "+-------+--------------------+--------------------+--------------------+--------------------+--------------------+--------------------+-----------------+-----------------+\n",
+            "|  count|               14323|               14323|               14323|               14323|               14323|               14323|            14323|            14323|\n",
+            "|   mean|1.5691055917540181E7|                null|  2964.1684835779174|                null|   184.4794104239212|    4.10122586589767| 531.645089129675|270.6000000000001|\n",
+            "| stddev|   3153508.981413936|                null|   2564.014850597362|                null|   530.4464890909902| 0.32242510456014223|292.3193817403071|94.35407203237656|\n",
+            "|    min|            10016743|            10% Silk| 'Blouse Fabric':...| 'Border': 'Printed'| 'Multipack Set':...| 'Occasion': 'Fes...|                1|             109f|\n",
+            "|    max|The blouse worn b...|zink Z Pink Basic...|Dry Clean &amp; H...|{'Blouse': 'Blous...|                 998|                   5|              999|             zola|\n",
+            "+-------+--------------------+--------------------+--------------------+--------------------+--------------------+--------------------+-----------------+-----------------+\n",
+            "\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# =========================remove duplicates===============================\n",
+        "new_dataset_zero = b_data.dropDuplicates()\n",
+        "new_dataset_zero.describe().show()"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "l9xOBSWVLzAG",
+        "outputId": "e2dee67a-91d6-4b3f-bd4d-b1b0b2c5202d"
+      },
+      "execution_count": 20,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "+-------+--------------------+--------------------+--------------------+--------------------+--------------------+--------------------+------------------+-----------------+\n",
+            "|summary|                p_id|                name|               price|              colour|         ratingCount|          avg_rating|          brand_id|            brand|\n",
+            "+-------+--------------------+--------------------+--------------------+--------------------+--------------------+--------------------+------------------+-----------------+\n",
+            "|  count|               14239|               14239|               14239|               14239|               14239|               14239|             14239|            14239|\n",
+            "|   mean|1.5687850004287923E7|                null|   2969.640657950232|                null|    184.752774757177|   4.101180737020576| 531.6633620060633|270.6000000000001|\n",
+            "| stddev|   3156788.024644195|                null|  2569.5174997349563|                null|   531.9128144352068|  0.3223747903739449|292.18119153834397|94.35407203237656|\n",
+            "|    min|            10016743|            10% Silk| 'Blouse Fabric':...| 'Border': 'Printed'| 'Multipack Set':...| 'Occasion': 'Fes...|                 1|             109f|\n",
+            "|    max|The blouse worn b...|zink Z Pink Basic...|Dry Clean &amp; H...|{'Blouse': 'Blous...|                 998|                   5|               999|             zola|\n",
+            "+-------+--------------------+--------------------+--------------------+--------------------+--------------------+--------------------+------------------+-----------------+\n",
+            "\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# =========================== Linear Regression Analysis ================================\n",
+        "from pyspark.sql import SparkSession\n",
+        "\n",
+        "spark = SparkSession \\\n",
+        "    .builder \\\n",
+        "    .appName(\"Python Spark regression example\") \\\n",
+        "    .config(\"spark.some.config.option\", \"some-value\") \\\n",
+        "    .getOrCreate()"
+      ],
+      "metadata": {
+        "id": "NzzgsFQjajoa"
+      },
+      "execution_count": 21,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "new_dataset_zero.describe().show()"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "zgNWn1komJPt",
+        "outputId": "7d3c8efd-603b-4a19-9af8-e28896f06df3"
+      },
+      "execution_count": 22,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "+-------+--------------------+--------------------+--------------------+--------------------+--------------------+--------------------+------------------+-----------------+\n",
+            "|summary|                p_id|                name|               price|              colour|         ratingCount|          avg_rating|          brand_id|            brand|\n",
+            "+-------+--------------------+--------------------+--------------------+--------------------+--------------------+--------------------+------------------+-----------------+\n",
+            "|  count|               14239|               14239|               14239|               14239|               14239|               14239|             14239|            14239|\n",
+            "|   mean|1.5687850004287923E7|                null|   2969.640657950232|                null|    184.752774757177|   4.101180737020576| 531.6633620060633|270.6000000000001|\n",
+            "| stddev|   3156788.024644195|                null|  2569.5174997349563|                null|   531.9128144352068|  0.3223747903739449|292.18119153834397|94.35407203237656|\n",
+            "|    min|            10016743|            10% Silk| 'Blouse Fabric':...| 'Border': 'Printed'| 'Multipack Set':...| 'Occasion': 'Fes...|                 1|             109f|\n",
+            "|    max|The blouse worn b...|zink Z Pink Basic...|Dry Clean &amp; H...|{'Blouse': 'Blous...|                 998|                   5|               999|             zola|\n",
+            "+-------+--------------------+--------------------+--------------------+--------------------+--------------------+--------------------+------------------+-----------------+\n",
+            "\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# =============================Converting String to index=================\n",
+        "from pyspark.ml.feature import StringIndexer\n",
+        "from pyspark.ml import Pipeline\n",
+        "from pyspark.sql.functions import col\n",
+        "indexer = [StringIndexer(inputCol=column, outputCol=column+\"_index\") for column in list(set(new_dataset_zero.columns)-set(['count'])) ]\n",
+        "pipeline = Pipeline(stages=indexer)\n",
+        "transformed = pipeline.fit(new_dataset_zero).transform(new_dataset_zero)\n",
+        "transformed.show(10)"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "vH4gd1MBELuV",
+        "outputId": "40a5141d-f7ff-482b-eadf-c0c6c5401a8a"
+      },
+      "execution_count": 23,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "+--------+--------------------+-----+-------+-----------+-----------+--------+--------------+-----------+----------------+--------------+------------+----------+-----------------+-----------+----------+\n",
+            "|    p_id|                name|price| colour|ratingCount| avg_rating|brand_id|         brand|price_index|avg_rating_index|brand_id_index|colour_index|p_id_index|ratingCount_index|brand_index|name_index|\n",
+            "+--------+--------------------+-----+-------+-----------+-----------+--------+--------------+-----------+----------------+--------------+------------+----------+-----------------+-----------+----------+\n",
+            "| 1518329|Dupatta Bazaar Wh...|  899|  White|       1321|4.548826646|     242|dupatta bazaar|       16.0|          2284.0|           9.0|         5.0|    4272.0|            437.0|        9.0|     110.0|\n",
+            "| 5829334|Roadster Women Mu...| 1199|Mustard|       5462|4.313255218|     750|      roadster|       14.0|          1916.0|           0.0|        11.0|   13782.0|            705.0|        0.0|     206.0|\n",
+            "|10340119|Inddus Peach-Colo...| 5799|  Peach|        145|4.068965517|     389|        inddus|      122.0|           447.0|          26.0|        13.0|     120.0|            121.0|       26.0|    5044.0|\n",
+            "|10856380|SASSAFRAS Women B...| 1499|  Black|       9124|4.147523016|     783|     sassafras|        1.0|          1448.0|           3.0|         0.0|     356.0|            814.0|        3.0|    9421.0|\n",
+            "|12384822|Kotty Women Black...| 1999|  Black|      12260|4.078466558|     482|         kotty|        0.0|          1275.0|         181.0|         0.0|    1157.0|            421.0|      183.0|    5975.0|\n",
+            "|12742100|KASSUALLY Women B...| 2199|  Black|       6297|4.349213911|     458|     kassually|       13.0|          1986.0|          44.0|         0.0|    1367.0|            729.0|       44.0|    5735.0|\n",
+            "|13842966|Sassafras Brown &...| 1499|  Brown|       7358|4.395351998|     783|     sassafras|        1.0|          2088.0|           3.0|        17.0|    2439.0|            769.0|        3.0|   10350.0|\n",
+            "|14021452|Sera Women Multic...| 1494|  Multi|        750|      4.288|     793|          sera|      244.0|          1831.0|          80.0|        20.0|    2744.0|            773.0|       80.0|   10409.0|\n",
+            "|14063026|Tokyo Talkies Wom...|  699|  Black|       1856|4.530711207|     903| tokyo talkies|       30.0|          2266.0|           1.0|         0.0|    2795.0|            278.0|        1.0|   11522.0|\n",
+            "|14324806|Anouk Stylish Bla...| 4699|  Black|         84| 3.80952381|      75|         anouk|       80.0|           411.0|           8.0|         0.0|    3139.0|             95.0|        7.0|    1010.0|\n",
+            "+--------+--------------------+-----+-------+-----------+-----------+--------+--------------+-----------+----------------+--------------+------------+----------+-----------------+-----------+----------+\n",
+            "only showing top 10 rows\n",
+            "\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "df_new = transformed.drop('p_id', 'name', 'price', 'colour', 'ratingCount', 'avg_rating', 'brand_id', 'brand')"
+      ],
+      "metadata": {
+        "id": "B1_2WQgBEroY"
+      },
+      "execution_count": 76,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "df_new.show(10)"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "tzjSGkPPT-gh",
+        "outputId": "884bd353-0339-421e-c888-0912f8b6d7c2"
+      },
+      "execution_count": 78,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "+-----------+-----------------+----------------+----------+------------+-----------+--------------+----------+\n",
+            "|price_index|ratingCount_index|avg_rating_index|p_id_index|colour_index|brand_index|brand_id_index|name_index|\n",
+            "+-----------+-----------------+----------------+----------+------------+-----------+--------------+----------+\n",
+            "|       16.0|            437.0|          2284.0|    4272.0|         5.0|        9.0|           9.0|     110.0|\n",
+            "|       14.0|            705.0|          1916.0|   13782.0|        11.0|        0.0|           0.0|     206.0|\n",
+            "|      122.0|            121.0|           447.0|     120.0|        13.0|       26.0|          26.0|    5044.0|\n",
+            "|        1.0|            814.0|          1448.0|     356.0|         0.0|        3.0|           3.0|    9421.0|\n",
+            "|        0.0|            421.0|          1275.0|    1157.0|         0.0|      183.0|         181.0|    5975.0|\n",
+            "|       13.0|            729.0|          1986.0|    1367.0|         0.0|       44.0|          44.0|    5735.0|\n",
+            "|        1.0|            769.0|          2088.0|    2439.0|        17.0|        3.0|           3.0|   10350.0|\n",
+            "|      244.0|            773.0|          1831.0|    2744.0|        20.0|       80.0|          80.0|   10409.0|\n",
+            "|       30.0|            278.0|          2266.0|    2795.0|         0.0|        1.0|           1.0|   11522.0|\n",
+            "|       80.0|             95.0|           411.0|    3139.0|         0.0|        7.0|           8.0|    1010.0|\n",
+            "+-----------+-----------------+----------------+----------+------------+-----------+--------------+----------+\n",
+            "only showing top 10 rows\n",
+            "\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "from pyspark.sql import SparkSession\n",
+        "\n",
+        "spark = SparkSession \\\n",
+        "    .builder \\\n",
+        "    .appName(\"Python Spark regression example\") \\\n",
+        "    .config(\"spark.some.config.option\", \"some-value\") \\\n",
+        "    .getOrCreate()"
+      ],
+      "metadata": {
+        "id": "ZG4Zsyt9U_uO"
+      },
+      "execution_count": 79,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "from pyspark.sql import Row\n",
+        "from pyspark.ml.linalg import Vectors\n",
+        "def transData(data):\n",
+        "  return data.rdd.map(lambda r: [Vectors.dense(r[:-1]),r[-1]]).toDF(['features','label'])"
+      ],
+      "metadata": {
+        "id": "xvxYZM8ekyJc"
+      },
+      "execution_count": 81,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "#=================================Transform the dataset to DataFrame====================\n",
+        "transformed= transData(df_new)\n",
+        "transformed.show(5)"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "gke9NfiBn_DL",
+        "outputId": "c64d06c9-4bcf-4cd4-ccdd-ac9feec8a570"
+      },
+      "execution_count": 82,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "+--------------------+------+\n",
+            "|            features| label|\n",
+            "+--------------------+------+\n",
+            "|[16.0,437.0,2284....| 110.0|\n",
+            "|[14.0,705.0,1916....| 206.0|\n",
+            "|[122.0,121.0,447....|5044.0|\n",
+            "|[1.0,814.0,1448.0...|9421.0|\n",
+            "|[0.0,421.0,1275.0...|5975.0|\n",
+            "+--------------------+------+\n",
+            "only showing top 5 rows\n",
+            "\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "from pyspark.ml import Pipeline\n",
+        "from pyspark.ml.regression import LinearRegression\n",
+        "from pyspark.ml.feature import VectorIndexer\n",
+        "from pyspark.ml.evaluation import RegressionEvaluator\n",
+        "\n",
+        "# Automatically identify categorical features, and index them.\n",
+        "# We specify maxCategories so features with > 4 distinct values are treated as continuous.\n",
+        "\n",
+        "featureIndexer = VectorIndexer(inputCol=\"features\", \\\n",
+        "                               outputCol=\"indexedFeatures\",\\\n",
+        "                               maxCategories=4).fit(transformed)\n",
+        "\n",
+        "data = featureIndexer.transform(transformed)"
+      ],
+      "metadata": {
+        "id": "O2J8mNA0t-Wn"
+      },
+      "execution_count": 89,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "data.show(5,True)"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "_N8JSdrJwGtY",
+        "outputId": "93154773-908e-4a20-e0ee-8585eed12ad2"
+      },
+      "execution_count": 90,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "+--------------------+------+--------------------+\n",
+            "|            features| label|     indexedFeatures|\n",
+            "+--------------------+------+--------------------+\n",
+            "|[16.0,437.0,2284....| 110.0|[16.0,437.0,2284....|\n",
+            "|[14.0,705.0,1916....| 206.0|[14.0,705.0,1916....|\n",
+            "|[122.0,121.0,447....|5044.0|[122.0,121.0,447....|\n",
+            "|[1.0,814.0,1448.0...|9421.0|[1.0,814.0,1448.0...|\n",
+            "|[0.0,421.0,1275.0...|5975.0|[0.0,421.0,1275.0...|\n",
+            "+--------------------+------+--------------------+\n",
+            "only showing top 5 rows\n",
+            "\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# ====Split the data into training and test sets (40% held out for testing)=============\n",
+        "(trainingData, testData) = transformed.randomSplit([0.6, 0.4])"
+      ],
+      "metadata": {
+        "id": "NgnmOD8GoNWn"
+      },
+      "execution_count": 91,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "trainingData.show(5)\n",
+        "testData.show(5)"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "BadElnBXpBG3",
+        "outputId": "7a485d0b-b615-4e3f-ad57-fdafb3ae84fe"
+      },
+      "execution_count": 92,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "+--------------------+------+\n",
+            "|            features| label|\n",
+            "+--------------------+------+\n",
+            "|[0.0,0.0,0.0,75.0...|1489.0|\n",
+            "|[0.0,0.0,0.0,85.0...|1517.0|\n",
+            "|[0.0,0.0,0.0,88.0...|1519.0|\n",
+            "|[0.0,0.0,0.0,101....|1535.0|\n",
+            "|[0.0,0.0,0.0,139....|7209.0|\n",
+            "+--------------------+------+\n",
+            "only showing top 5 rows\n",
+            "\n",
+            "+--------------------+------+\n",
+            "|            features| label|\n",
+            "+--------------------+------+\n",
+            "|[0.0,0.0,0.0,74.0...|1522.0|\n",
+            "|[0.0,0.0,0.0,79.0...|1540.0|\n",
+            "|[0.0,0.0,0.0,95.0...|1485.0|\n",
+            "|[0.0,0.0,0.0,108....|  69.0|\n",
+            "|[0.0,0.0,0.0,366....|  57.0|\n",
+            "+--------------------+------+\n",
+            "only showing top 5 rows\n",
+            "\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "Fit Ordinary Least Square Regression Model"
+      ],
+      "metadata": {
+        "id": "l5NRvPuttk54"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# Import LinearRegression class\n",
+        "from pyspark.ml.regression import LinearRegression\n",
+        "\n",
+        "# Define LinearRegression algorithm\n",
+        "lr = LinearRegression()"
+      ],
+      "metadata": {
+        "id": "fbQfDyeutfhm"
+      },
+      "execution_count": 93,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# Chain indexer and tree in a Pipeline\n",
+        "pipeline = Pipeline(stages=[featureIndexer, lr])\n",
+        "\n",
+        "model = pipeline.fit(trainingData)"
+      ],
+      "metadata": {
+        "id": "B0OdZvlotqin"
+      },
+      "execution_count": 94,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "#=============================Summary of the Model=========================\n",
+        "\n",
+        "def modelsummary(model):\n",
+        "    import numpy as np\n",
+        "    print (\"Note: the last rows are the information for Intercept\")\n",
+        "    print (\"##\",\"-------------------------------------------------\")\n",
+        "    print (\"##\",\"  Estimate   |   Std.Error | t Values  |  P-value\")\n",
+        "    coef = np.append(list(model.coefficients),model.intercept)\n",
+        "    Summary=model.summary\n",
+        "\n",
+        "    for i in range(len(Summary.pValues)):\n",
+        "        print (\"##\",'{:10.6f}'.format(coef[i]),\\\n",
+        "        '{:10.6f}'.format(Summary.coefficientStandardErrors[i]),\\\n",
+        "        '{:8.3f}'.format(Summary.tValues[i]),\\\n",
+        "        '{:10.6f}'.format(Summary.pValues[i]))\n",
+        "\n",
+        "    print (\"##\",'---')\n",
+        "    print (\"##\",\"Mean squared error: % .6f\" \\\n",
+        "           % Summary.meanSquaredError, \", RMSE: % .6f\" \\\n",
+        "           % Summary.rootMeanSquaredError )\n",
+        "    print (\"##\",\"Multiple R-squared: %f\" % Summary.r2, \", \\\n",
+        "            Total iterations: %i\"% Summary.totalIterations)\n"
+      ],
+      "metadata": {
+        "id": "rbUnlXf1tv8A"
+      },
+      "execution_count": 95,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "modelsummary(model.stages[-1])"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "kI6Kg7qB5wX5",
+        "outputId": "0cc34794-3c21-48ea-cd45-31d3a57ebf48"
+      },
+      "execution_count": 96,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Note: the last rows are the information for Intercept\n",
+            "## -------------------------------------------------\n",
+            "##   Estimate   |   Std.Error | t Values  |  P-value\n",
+            "##   0.773723   0.207521    3.728   0.000194\n",
+            "##   0.346395   0.499204    0.694   0.487768\n",
+            "##   0.356199   0.117375    3.035   0.002415\n",
+            "##   0.036508   0.011121    3.283   0.001032\n",
+            "##  11.531581   5.204754    2.216   0.026746\n",
+            "##  47.798867   5.151711    9.278   0.000000\n",
+            "## -47.639493   5.153057   -9.245   0.000000\n",
+            "## 6236.469858 111.660006   55.852   0.000000\n",
+            "## ---\n",
+            "## Mean squared error:  16501961.672196 , RMSE:  4062.260660\n",
+            "## Multiple R-squared: 0.014439 ,             Total iterations: 0\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "Make predictions"
+      ],
+      "metadata": {
+        "id": "DHyBM5Fg6jH9"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# ========================Make predictions======================================\n",
+        "predictions = model.transform(testData)"
+      ],
+      "metadata": {
+        "id": "5Iq7DpjC6Cv3"
+      },
+      "execution_count": 97,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# Select example rows to display.\n",
+        "predictions.select(\"features\",\"label\",\"prediction\").show(5)"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "QJIQIdmh6qJt",
+        "outputId": "7e920675-bd33-49ae-9db0-bf181ddd5240"
+      },
+      "execution_count": 98,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "+--------------------+------+-----------------+\n",
+            "|            features| label|       prediction|\n",
+            "+--------------------+------+-----------------+\n",
+            "|[0.0,0.0,0.0,74.0...|1522.0|6416.767016956707|\n",
+            "|[0.0,0.0,0.0,79.0...|1540.0|6347.760075190636|\n",
+            "|[0.0,0.0,0.0,95.0...|1485.0| 6244.55998353268|\n",
+            "|[0.0,0.0,0.0,108....|  69.0| 6279.62933387017|\n",
+            "|[0.0,0.0,0.0,366....|  57.0|6290.642224040415|\n",
+            "+--------------------+------+-----------------+\n",
+            "only showing top 5 rows\n",
+            "\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "Evaluation"
+      ],
+      "metadata": {
+        "id": "GNYh4U5h8RLs"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "from pyspark.ml.evaluation import RegressionEvaluator\n",
+        "# Select (prediction, true label) and compute test error\n",
+        "evaluator = RegressionEvaluator(labelCol=\"label\",\n",
+        "                                predictionCol=\"prediction\",\n",
+        "                                metricName=\"rmse\")\n",
+        "\n",
+        "rmse = evaluator.evaluate(predictions)\n",
+        "print(\"Root Mean Squared Error (RMSE) on test data = %g\" % rmse)"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "OUjy4QGK6vnb",
+        "outputId": "ac8c8bc0-b72f-4fb3-c2b1-d0f348dbc858"
+      },
+      "execution_count": 99,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Root Mean Squared Error (RMSE) on test data = 4067.42\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "y_true = predictions.select(\"label\").toPandas()\n",
+        "y_pred = predictions.select(\"prediction\").toPandas()\n",
+        "\n",
+        "import sklearn.metrics\n",
+        "r2_score = sklearn.metrics.r2_score(y_true, y_pred)\n",
+        "print('r2_score: {0}'.format(r2_score))"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "pMESmFpW8Wfx",
+        "outputId": "dc4bf4bd-77e7-40de-9bb7-3cbaea4303df"
+      },
+      "execution_count": 100,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "r2_score: 0.02010236895452211\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [],
+      "metadata": {
+        "id": "s7MCRSBe-LON"
+      },
+      "execution_count": 101,
+      "outputs": []
+    }
+  ]
+}
